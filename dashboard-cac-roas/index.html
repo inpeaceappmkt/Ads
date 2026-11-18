@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InPeace — CAC e ROAS</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #111827; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2563eb; --good: #059669; --bad: #dc2626; --warn: #d97706;
+  --c1: #2563eb; --c2: #059669; --c3: #d97706; --c4: #7c3aed; --c5: #db2777; --c6: #6b7280;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f17; --card: #131a26; --text: #e5e7eb; --muted: #9ca3af; --line: #253042;
+    --accent: #60a5fa; --good: #34d399; --bad: #f87171; --warn: #fbbf24;
+    --c1: #60a5fa; --c2: #34d399; --c3: #fbbf24; --c4: #a78bfa; --c5: #f472b6; --c6: #9ca3af;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 Inter, system-ui, -apple-system, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+.sub { color: var(--muted); font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filters select, .filters input, .filters button {
+  font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text);
+}
+.filters button { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; font-weight: 600; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpi .v { font-size: 19px; } .filters { width: 100%; } .filters > * { flex: 1 1 140px; } }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.kpi .l { color: var(--muted); font-size: 12px; font-weight: 500; }
+.kpi .v { font-size: 22px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.kpi .h { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; min-width: 0; }
+.card h2 { font-size: 14px; margin: 0 0 10px; }
+.card h2 small { color: var(--muted); font-weight: 400; }
+.chart { position: relative; height: 260px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; cursor: pointer; user-select: none; }
+td.nome { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.tag { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11.5px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.funil { display: grid; gap: 8px; }
+.funil .row { display: grid; grid-template-columns: 120px 1fr 70px; gap: 8px; align-items: center; }
+.funil .bar { height: 22px; border-radius: 6px; background: var(--accent); min-width: 2px; }
+.funil .n { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.alert { background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; font-size: 13px; }
+.err { background: color-mix(in srgb, var(--bad) 12%, transparent); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+footer { color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>InPeace · CAC e ROAS</h1>
+      <div class="sub" id="atualizado">Carregando…</div>
+    </div>
+    <div class="filters">
+      <select id="preset" aria-label="Período">
+        <option value="desde">Desde nov/2026</option>
+        <option value="mes">Este mês</option>
+        <option value="7">Últimos 7 dias</option>
+        <option value="30">Últimos 30 dias</option>
+        <option value="mespassado">Mês passado</option>
+        <option value="tudo">Todo o histórico</option>
+        <option value="custom">Personalizado</option>
+      </select>
+      <input type="date" id="de" aria-label="De">
+      <input type="date" id="ate" aria-label="Até">
+      <select id="canal" aria-label="Canal"><option value="">Todos os canais</option></select>
+      <button id="aplicar">Aplicar</button>
+    </div>
+  </header>
+
+  <div id="avisos"></div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Investimento × leads por dia</h2>
+      <div class="chart"><canvas id="gDia"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Funil <small id="funilSub"></small></h2>
+      <div class="funil" id="funil"></div>
+      <div class="note">Qualificado = lead que concluiu o cadastro (etapa "finalizado").</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Por canal <small>(origem = utm_source do lead)</small></h2>
+    <div class="scroll"><table id="tCanal"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Por campanha</h2>
+    <div class="scroll"><table id="tCamp"></table></div>
+    <div class="note">Gasto vem do Meta/Google pelo nome da campanha; leads e vendas vêm do utm_campaign do lead. Os dois só se juntam quando o nome é igual.</div>
+  </div>
+
+  <div class="card">
+    <h2>utm_source encontrados <small>(como cada valor foi classificado)</small></h2>
+    <div class="scroll"><table id="tOrig"></table></div>
+  </div>
+
+  <footer>
+    CAC = investimento ÷ vendas ganhas · CAC ÷ MRR = valor do CAC ÷ MRR novo do período (ex.: 3,5x) · ROAS = MRR novo ÷ investimento ·
+    Vendas entram pela data de fechamento (ou entrada na fase Ganho). Dados: Jestor, Meta Ads e Google Ads, atualizados todo dia às 6h30.
+  </footer>
+</div>
+
+<script>
+// ===== Configuração =====
+const API = 'https://n8n.inpeaceapp.com/webhook/dash-inpeace';
+const CHAVE = 'wFnxKEtLjPpsOcMvkVDr7PoV';
+const INICIO_LEADS = '2026-11-01';   // a tabela Marketing LEADS começa aqui
+
+const brl = n => n == null ? '—' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: n >= 1000 ? 0 : 2 });
+const num = n => n == null ? '—' : n.toLocaleString('pt-BR');
+const pct = n => n == null ? '—' : n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+const x = n => n == null ? '—' : n.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'x';
+// CAC em múltiplos do MRR novo (valor do CAC ÷ valor do MRR novo do período)
+const cacMrr = r => r && r.cac && r.mrr ? r.cac / r.mrr : null;
+const xMrr = n => n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'x';
+const dias = n => n == null ? '—' : n + ' dias';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const $ = id => document.getElementById(id);
+let dados = null, grafico = null;
+
+function periodo(p) {
+  const hoje = new Date(), h = iso(hoje);
+  if (p === 'desde') return [INICIO_LEADS, h];
+  if (p === 'mes') return [iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1)), h];
+  if (p === '7' || p === '30') return [iso(new Date(hoje - (p - 1) * 864e5)), h];
+  if (p === 'mespassado') return [iso(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)), iso(new Date(hoje.getFullYear(), hoje.getMonth(), 0))];
+  if (p === 'tudo') return ['2025-01-01', h];
+  return [$('de').value, $('ate').value];
+}
+
+function salvarPrefs() { try { localStorage.setItem('dash-inpeace', JSON.stringify({ preset: $('preset').value, de: $('de').value, ate: $('ate').value })); } catch (e) {} }
+function lerPrefs() { try { return JSON.parse(localStorage.getItem('dash-inpeace') || '{}'); } catch (e) { return {}; } }
+
+async function carregar() {
+  const [de, ate] = periodo($('preset').value);
+  $('de').value = de; $('ate').value = ate;
+  salvarPrefs();
+  $('atualizado').textContent = 'Carregando…';
+  try {
+    const r = await fetch(`${API}?key=${encodeURIComponent(CHAVE)}&de=${de}&ate=${ate}`, { cache: 'no-store' });
+    dados = await r.json();
+    if (dados.erro) throw new Error(dados.erro);
+    render();
+  } catch (e) {
+    $('avisos').innerHTML = `<div class="alert err">Não consegui carregar os dados: ${esc(e.message)}</div>`;
+    $('atualizado').textContent = '';
+  }
+}
+
+function filtrados() {
+  const c = $('canal').value;
+  if (!c) return { total: dados.total, campanhas: dados.por_campanha };
+  const t = dados.por_canal.find(x => x.canal === c) || {};
+  return { total: t, campanhas: dados.por_campanha.filter(x => x.canal === c) };
+}
+
+function render() {
+  const d = dados;
+  const at = new Date(d.atualizado_em);
+  $('atualizado').textContent = `Período ${d.periodo.de.split('-').reverse().join('/')} a ${d.periodo.ate.split('-').reverse().join('/')} · dados de ${at.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;
+
+  // canais no filtro
+  const sel = $('canal'), atual = sel.value;
+  sel.innerHTML = '<option value="">Todos os canais</option>' + d.por_canal.map(c => `<option ${c.canal === atual ? 'selected' : ''}>${esc(c.canal)}</option>`).join('');
+
+  const { total: t, campanhas } = filtrados();
+
+  // avisos
+  const av = [];
+  if (d.periodo.de < INICIO_LEADS) av.push(`A tabela de leads começa em ${INICIO_LEADS.split('-').reverse().join('/')}. Antes disso há gasto e vendas, mas não há leads: use o CAC geral, não o CPL.`);
+  if (d.vendas_sem_lead) av.push(`${d.vendas_sem_lead} venda(s) do período não foram ligadas a um lead (telefone/e-mail não encontrados na Marketing LEADS) e aparecem como "Sem origem". Elas entram no CAC geral, mas não no CAC por canal.`);
+  $('avisos').innerHTML = av.map(a => `<div class="alert">${esc(a)}</div>`).join('');
+
+  // KPIs
+  const k = [
+    ['Investimento', brl(t.investimento), `${num(t.cliques)} cliques · CTR ${pct(t.ctr)}`],
+    ['Leads', num(t.leads), `CPL ${brl(t.cpl)}`],
+    ['Qualificados', num(t.qualificados), `${pct(t.taxa_qualificacao)} dos leads · ${brl(t.custo_qualificado)} cada`],
+    ['Vendas ganhas', num(t.vendas), `Conversão lead→venda ${pct(t.conversao_lead_venda)}`],
+    ['CAC ÷ MRR', xMrr(cacMrr(t)), `CAC ${brl(t.cac)} ÷ MRR novo ${brl(t.mrr)}`],
+    ['MRR novo', brl(t.mrr), `${num(t.vendas)} cliente(s) novo(s) no período`],
+    ['ROAS (MRR)', x(t.roas), 'MRR novo ÷ investimento'],
+    ['Ticket médio (MRR)', brl(t.ticket_medio_mrr), `por cliente/mês · fechamento mediano ${dias(t.dias_ate_fechar)}`],
+  ];
+  $('kpis').innerHTML = k.map(([l, v, h]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join('');
+
+  // funil
+  const etapas = [['Leads', t.leads || 0], ['Qualificados', t.qualificados || 0], ['Vendas', t.vendas || 0]];
+  const max = Math.max(1, ...etapas.map(e => e[1]));
+  $('funil').innerHTML = etapas.map(([l, n]) => `<div class="row"><div>${l}</div><div><div class="bar" style="width:${(n / max * 100).toFixed(1)}%"></div></div><div class="n">${num(n)}</div></div>`).join('');
+  $('funilSub').textContent = $('canal').value ? `· ${$('canal').value}` : '';
+
+  // gráfico diário
+  const pd = d.por_dia;
+  if (grafico) grafico.destroy();
+  grafico = new Chart($('gDia'), {
+    data: {
+      labels: pd.map(p => p.data.slice(8, 10) + '/' + p.data.slice(5, 7)),
+      datasets: [
+        { type: 'bar', label: 'Investimento (R$)', data: pd.map(p => p.investimento), backgroundColor: css('--c1') + '99', borderRadius: 4, yAxisID: 'y' },
+        { type: 'line', label: 'Leads', data: pd.map(p => p.leads), borderColor: css('--c2'), backgroundColor: css('--c2'), tension: .3, pointRadius: 2, yAxisID: 'y1' },
+        { type: 'line', label: 'Vendas', data: pd.map(p => p.vendas), borderColor: css('--c3'), backgroundColor: css('--c3'), tension: .3, pointRadius: 2, yAxisID: 'y1' },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: css('--muted'), boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => c.dataset.yAxisID === 'y' ? `${c.dataset.label}: ${brl(c.raw)}` : `${c.dataset.label}: ${c.raw}` } } },
+      scales: {
+        x: { ticks: { color: css('--muted'), maxRotation: 0, autoSkipPadding: 12 }, grid: { display: false } },
+        y: { position: 'left', ticks: { color: css('--muted'), callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: css('--line') } },
+        y1: { position: 'right', ticks: { color: css('--muted'), precision: 0 }, grid: { display: false } },
+      },
+    },
+  });
+
+  // tabelas
+  tabela('tCanal', d.por_canal, [
+    ['Canal', r => `<span class="tag">${esc(r.canal)}</span>`, r => r.canal],
+    ['Investimento', r => brl(r.investimento), r => r.investimento],
+    ['Leads', r => num(r.leads), r => r.leads],
+    ['CPL', r => brl(r.cpl), r => r.cpl],
+    ['Qualif.', r => num(r.qualificados), r => r.qualificados],
+    ['% qualif.', r => pct(r.taxa_qualificacao), r => r.taxa_qualificacao],
+    ['Vendas', r => num(r.vendas), r => r.vendas],
+    ['CAC', r => brl(r.cac), r => r.cac],
+    ['CAC ÷ MRR', r => xMrr(cacMrr(r)), r => cacMrr(r)],
+    ['MRR', r => brl(r.mrr), r => r.mrr],
+    ['ROAS', r => x(r.roas), r => r.roas],
+  ]);
+  tabela('tCamp', campanhas, [
+    ['Campanha', r => `<span title="${esc(r.campanha)}">${esc(r.campanha)}</span>`, r => r.campanha, 'nome'],
+    ['Canal', r => esc(r.canal), r => r.canal],
+    ['Investimento', r => brl(r.investimento), r => r.investimento],
+    ['Cliques', r => num(r.cliques), r => r.cliques],
+    ['CTR', r => pct(r.ctr), r => r.ctr],
+    ['Leads', r => num(r.leads), r => r.leads],
+    ['CPL', r => brl(r.cpl), r => r.cpl],
+    ['Vendas', r => num(r.vendas), r => r.vendas],
+    ['CAC', r => brl(r.cac), r => r.cac],
+    ['CAC ÷ MRR', r => xMrr(cacMrr(r)), r => cacMrr(r)],
+    ['ROAS', r => x(r.roas), r => r.roas],
+  ]);
+  tabela('tOrig', d.origens_brutas, [
+    ['utm_source', r => `<code>${esc(r.utm_source)}</code>`, r => r.utm_source],
+    ['Classificado como', r => `<span class="tag">${esc(r.canal)}</span>`, r => r.canal],
+    ['Leads', r => num(r.leads), r => r.leads],
+  ]);
+}
+
+const ordem = {};
+function tabela(id, linhas, cols) {
+  const o = ordem[id];
+  const rows = [...(linhas || [])];
+  if (o) rows.sort((a, b) => { const va = cols[o.i][2](a), vb = cols[o.i][2](b); return (va == null) - (vb == null) || (va > vb ? 1 : va < vb ? -1 : 0) * o.dir; });
+  $(id).innerHTML = `<thead><tr>${cols.map((c, i) => `<th data-i="${i}">${c[0]}${o && o.i === i ? (o.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('')}</tr></thead>` +
+    `<tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="${c[3] || ''}">${c[1](r)}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--muted)">Sem dados no período</td></tr>`}</tbody>`;
+  $(id).querySelectorAll('th').forEach(th => th.onclick = () => {
+    const i = +th.dataset.i; ordem[id] = { i, dir: o && o.i === i ? -o.dir : -1 }; render();
+  });
+}
+
+const prefs = lerPrefs();
+if (prefs.preset) $('preset').value = prefs.preset;
+if (prefs.preset === 'custom') { $('de').value = prefs.de || ''; $('ate').value = prefs.ate || ''; }
+$('preset').onchange = () => { if ($('preset').value !== 'custom') carregar(); };
+$('de').onchange = $('ate').onchange = () => { $('preset').value = 'custom'; };
+$('aplicar').onclick = carregar;
+$('canal').onchange = () => dados && render();
+carregar();
+</script>
+</body>
+</html>
